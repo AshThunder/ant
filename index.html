@@ -1,0 +1,2742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ant Kingdom - Rule the Colony</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Creepster&display=swap" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.23.6/babel.min.js"></script>
+    <script defer src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script defer src="https://cdn.tailwindcss.com/3.4.1"></script>
+    <script>
+        window.addEventListener("load", () => {
+            const loadFallbackScript = (lib, primarySrc, fallbackSrcs, onSuccess, onError) => {
+                if (window[lib]) {
+                    console.log(`${lib} already loaded.`);
+                    onSuccess();
+                    return;
+                }
+
+                const tryLoadScript = (src, onLoad, onFail) => {
+                    console.log(`Attempting to load ${lib} from ${src}`);
+                    const script = document.createElement("script");
+                    script.src = src;
+                    script.async = true;
+                    script.onload = () => {
+                        console.log(`${lib} loaded successfully from ${src}`);
+                        onLoad();
+                    };
+                    script.onerror = () => {
+                        console.warn(`${lib} failed to load from ${src}`);
+                        onFail();
+                    };
+                    document.head.appendChild(script);
+                };
+
+                tryLoadScript(primarySrc, onSuccess, () => {
+                    console.warn(`${lib} failed at primary source. Trying fallbacks...`);
+                    let currentIndex = 0;
+                    const tryNextFallback = () => {
+                        if (currentIndex >= fallbackSrcs.length) {
+                            console.error(`${lib} failed to load from all sources.`);
+                            onError();
+                            return;
+                        }
+                        tryLoadScript(fallbackSrcs[currentIndex], onSuccess, () => {
+                            console.warn(`${lib} failed at ${fallbackSrcs[currentIndex]}. Trying next...`);
+                            currentIndex++;
+                            tryNextFallback();
+                        });
+                    };
+                    tryNextFallback();
+                });
+            };
+
+            const dependencies = [
+                {
+                    lib: "React",
+                    primarySrc: "https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js",
+                    fallbacks: [],
+                    global: "React",
+                },
+                {
+                    lib: "ReactDOM",
+                    primarySrc: "https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js",
+                    fallbacks: [],
+                    global: "ReactDOM",
+                },
+                {
+                    lib: "Babel",
+                    primarySrc: "https://cdn.jsdelivr.net/npm/@babel/standalone@7.23.6/babel.min.js",
+                    fallbacks: [],
+                    global: "Babel",
+                },
+                {
+                    lib: "ethers",
+                    primarySrc: "https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js",
+                    fallbacks: [
+                        "https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js",
+                        "https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js",
+                    ],
+                    global: "ethers",
+                },
+                {
+                    lib: "THREE",
+                    primarySrc: "https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js",
+                    fallbacks: [
+                        "https://unpkg.com/three@0.134.0/build/three.min.js",
+                        "https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js",
+                    ],
+                    global: "THREE",
+                },
+            ];
+
+            let loadedCount = 0;
+            let progress = 0;
+            const totalDependencies = dependencies.length;
+            let errorMessages = [];
+
+            const updateProgress = () => {
+                progress = Math.min((loadedCount / totalDependencies) * 100, 100);
+                const progressBar = document.getElementById("progress-bar");
+                if (progressBar) {
+                    progressBar.style.width = `${progress}%`;
+                    document.getElementById("progress-text").textContent = `${Math.round(progress)}%`;
+                }
+            };
+
+            const checkAllLoaded = () => {
+                loadedCount++;
+                updateProgress();
+                if (loadedCount === totalDependencies) {
+                    if (errorMessages.length > 0) {
+                        const errorText = errorMessages.join(" ");
+                        console.error("Dependency errors:", errorText);
+                        document.getElementById("root").innerHTML = `
+                            <div className="container mx-auto py-8 px-4 text-red-300">
+                                <h1 className="text-3xl font-bold">Colony Error</h1>
+                                <p>${errorText}</p>
+                                <ul className="list-disc pl-6">
+                                    <li>Refresh the page.</li>
+                                    <li>Disable ad blockers or extensions like uBlock, Privacy Badger, or Telegram Web.</li>
+                                    <li>Check your internet connection and DNS.</li>
+                                    <li>Use Chrome or Firefox.</li>
+                                    <li>Run the page on a local server (e.g., 'python -m http.server').</li>
+                                </ul>
+                            </div>
+                        `;
+                    } else {
+                        console.log("All dependencies loaded successfully.");
+                        const script = document.createElement("script");
+                        script.type = "text/babel";
+                        script.innerHTML = document.querySelector("script[type='text/babel']").innerHTML;
+                        document.body.appendChild(script);
+                    }
+                }
+            };
+
+            dependencies.forEach(dep => {
+                loadFallbackScript(
+                    dep.global,
+                    dep.primarySrc,
+                    dep.fallbacks,
+                    () => checkAllLoaded(),
+                    () => {
+                        errorMessages.push(`${dep.lib} failed to load.`);
+                        checkAllLoaded();
+                    }
+                );
+            });
+        });
+    </script>
+    <style>
+        body {
+            background: #2F1E14;
+            color: #FFF8E1;
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            position: relative;
+            min-height: 100vh;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Cpath fill="none" stroke="%23FFB107" stroke-width="1" opacity="0.2" d="M10 10 C 20 20, 30 10, 40 20 S 60 30, 70 20 S 90 10, 90 20" /%3E%3C/svg%3E');
+            background-repeat: repeat;
+            opacity: 0.1;
+            z-index: -1;
+        }
+        #root {
+            position: relative;
+            z-index: 1;
+        }
+        .ant-card {
+            background: rgba(74, 55, 40, 0.9);
+            border: 2px solid #FFB107;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            margin: 16px 0;
+            background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"%3E%3Cpath fill="%23FFB107" opacity="0.1" d="M10 2 L18 18 H2 L10 2 Z"/%3E%3C/svg%3E');
+        }
+        .ant-button {
+            background: linear-gradient(45deg, #FFB107, #FFCA28);
+            color: #2F1E14;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .ant-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 193, 7, 0.5);
+        }
+        .ant-button:disabled {
+            background: #6B4E31;
+            color: #A1887F;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .ant-modal {
+            background: rgba(0, 0, 0, 0.8);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .ant-modal-content {
+            background: rgba(74, 55, 40, 0.95);
+            border: 2px solid #FFB107;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 600px;
+            width: 90%;
+        }
+        .hex-border {
+            border: 2px solid #8BC34A;
+            border-radius: 12px;
+        }
+        .ant-hill-canvas {
+            width: 100%;
+            border-radius: 12px;
+            border: 2px solid #FFB107;
+        }
+        .balance-card {
+            background: linear-gradient(135deg, #4A3728, #8BC34A);
+            border: 2px solid #FFB107;
+            border-radius: 12px;
+            padding: 12px;
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: transform 0.2s;
+        }
+        .balance-card:hover {
+            transform: translateY(-2px);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            border-bottom: 1px solid #8BC34A;
+        }
+        th {
+            background: #4A3728;
+        }
+        nav {
+            background: #2F1E14;
+            padding: 16px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+        }
+        footer {
+            background: #2F1E14;
+            padding: 16px;
+            text-align: center;
+        }
+        .error-alert {
+            background: #FFB107;
+            color: #2F1E14;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 90%;
+            margin: 16px auto;
+        }
+        .error-alert button {
+            background: #2F1E14;
+            color: #FFF8E1;
+            padding: 4px 12px;
+            border-radius: 4px;
+        }
+        .accordion-header {
+            cursor: pointer;
+            padding: 12px;
+            background: #4A3728;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .accordion-content {
+            padding: 12px;
+            border: 1px solid #8BC34A;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .pagination button {
+            background: #FFB107;
+            color: #2F1E14;
+            padding: 8px 16px;
+            border-radius: 8px;
+        }
+        .pagination button:disabled {
+            background: #6B4E31;
+            color: #A1887F;
+        }
+        .jackpot-card {
+            background: linear-gradient(135deg, #2F1E14, #4A3728);
+            border: 3px solid #FFD700;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 16px 0;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            animation: glow 2s ease-in-out infinite;
+        }
+        .queen-card {
+            background: linear-gradient(135deg, #2F1E14, #4A3728);
+            border: 3px solid #FFD700;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 16px 0;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            animation: glow 2s ease-in-out infinite;
+        }
+        .jackpot-amount, .queen-amount {
+            color: #FFD700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+            font-weight: 900;
+        }
+        .timer-tick {
+            animation: tick 1s infinite;
+        }
+        .queen-tribute {
+            background: linear-gradient(135deg, #8BC34A, #FFD700);
+            border: 3px solid #FFB107;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 16px 0;
+            box-shadow: 0 0 15px rgba(139, 195, 74, 0.5);
+            animation: pulse 3s ease-in-out infinite;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #4A3728, #61432C);
+            border: 2px solid #FFB107;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .stats-card:hover {
+            transform: translateY(-4px);
+        }
+        .stats-card h4 {
+            font-family: 'Creepster', cursive;
+            color: #FFD700;
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+        .ant-header {
+            font-family: 'Creepster', cursive;
+            color: #FFD700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+            font-size: 2.5rem;
+        }
+        .action-toast {
+            background: rgba(74, 55, 40, 0.95);
+            border: 2px solid #FFB107;
+            border-radius: 12px;
+            padding: 16px;
+            max-width: 500px;
+            width: 90%;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            animation: slideIn 0.5s ease-out;
+        }
+        .loading-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: rgba(47, 30, 20, 0.95);
+            text-align: center;
+            padding: 20px;
+        }
+        .loading-title {
+            font-family: 'Creepster', cursive;
+            color: #FFD700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        .progress-container {
+            width: 80%;
+            max-width: 400px;
+            background: #4A3728;
+            border: 2px solid #FFB107;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .progress-bar {
+            height: 20px;
+            background: linear-gradient(45deg, #FFB107, #FFCA28);
+            transition: width 0.5s ease-in-out;
+        }
+        .progress-text {
+            font-size: 1.2rem;
+            color: #FFF8E1;
+        }
+        @media (max-width: 768px) {
+            .nav-text { display: none; }
+            .nav-icon { display: block; padding: 8px; }
+            .jackpot-amount, .queen-amount { font-size: 2rem; }
+            .ant-header { font-size: 2rem; }
+            .loading-title { font-size: 2rem; }
+            .progress-container { width: 90%; }
+        }
+        @media (min-width: 769px) {
+            .nav-icon { display: none; }
+        }
+        @keyframes slideIn {
+            from { top: -100px; opacity: 0; }
+            to { top: 20px; opacity: 1; }
+        }
+        @keyframes glow {
+            0% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.8); }
+            100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
+        }
+        @keyframes tick {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        @keyframes pulse {
+            0% { border-color: #FFB107; }
+            50% { border-color: #8BC34A; }
+            100% { border-color: #FFB107; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="loading-screen">
+            <h1 class="loading-title">Ant Kingdom Loading...</h1>
+            <div class="progress-container">
+                <div id="progress-bar" class="progress-bar" style="width: 0%;">
+                </div>
+            </div>
+            <p id="progress-text" class="progress-text">0%</p>
+        </div>
+    </div>
+</body>
+    <script type="text/babel">
+        window.addEventListener("load", () => {
+            try {
+                const { useState, useEffect, useRef } = React;
+
+                if (!window.React || !window.ReactDOM || !window.Babel) {
+                    throw new Error("Core dependencies (React, ReactDOM, or Babel) are missing.");
+                }
+
+                const colonyAddress = "0xf71F5469067F742097524d51f907b2cD85036107";
+                const antTokenAddress = "0x7378f913739f571b8806486fe4a1acfc54a06d98";
+                const colonyABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "referrer",
+				"type": "address"
+			}
+		],
+		"name": "becomeKing",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "dissolveKingdom",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "fundPool",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "renounceOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "resetJackpot",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "newReward",
+				"type": "uint256"
+			}
+		],
+		"name": "setDailyTokenReward",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "transferOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_antToken",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			}
+		],
+		"name": "OwnableInvalidOwner",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "OwnableUnauthorizedAccount",
+		"type": "error"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "newReward",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "DailyRewardSet",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "king",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "JackpotAwarded",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "dissolver",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "oldKing",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "throneAmount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "KingdomDissolved",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "newKing",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "throneAmount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "NewKing",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "previousOwner",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "OwnershipTransferred",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "king",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "PassiveIncomeUpdated",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "PoolFunded",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "PoolWithdrawn",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "player",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "referrer",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "Referred",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "warKing",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "challenger",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "king",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "challengerWon",
+				"type": "bool"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "betAmount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "WarResult",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "withdraw$M",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "ownerFee",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "jackpotFee",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "referralFee",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "Withdrawn$M",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "WithdrawnReferral",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"name": "WithdrawnTokens",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "withdrawPool",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "withdrawReferralEarnings",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "withdrawTokens",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "antToken",
+		"outputs": [
+			{
+				"internalType": "contract IERC20",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "currentKing",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "dailyTokenReward",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "dashboard",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "DISSOLVE_JACKPOT_CUT",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "DISSOLVE_OWNER_CUT",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getContractBalance",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getCurrentKingPassiveIncome",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getJackpotEligibility",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			},
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getLastReign",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "king",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "startTime",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "endTime",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "reignThroneAmount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "ethEarnings",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "tokenEarnings",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "index",
+				"type": "uint256"
+			}
+		],
+		"name": "getRecentWar",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "challenger",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "king",
+				"type": "address"
+			},
+			{
+				"internalType": "bool",
+				"name": "challengerWon",
+				"type": "bool"
+			},
+			{
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "betAmount",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getRecentWarCount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			}
+		],
+		"name": "getReferralStats",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "referrer",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "count",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "balance",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "INITIAL_THRONE_AMOUNT",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "isGameActive",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "JACKPOT_ELIGIBILITY",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "JACKPOT_FEE",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "jackpotBalance",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "KING_CUT",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "kingStartTime",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "lastKingRewardTime",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "lastReign",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "king",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "startTime",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "endTime",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "throneAmount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "ethEarnings",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "tokenEarnings",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "nonce",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "OWNER_CUT",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "passiveIncome",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "recentWars",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "challenger",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "king",
+				"type": "address"
+			},
+			{
+				"internalType": "bool",
+				"name": "challengerWon",
+				"type": "bool"
+			},
+			{
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "betAmount",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "REFERRAL_FEE",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "referralCount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "referralEarnings",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "referrals",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "THRONE_DIVISOR",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "THRONE_MULTIPLIER",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "throneAmount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "warIndex",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "WITHDRAWAL_FEE",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
+
+                function ActionModal({ isOpen, onClose, action, hillAmount, isColonyActive, onProceed, loading, isCurrentQueen }) {
+                    if (!isOpen) return null;
+
+                    const getModalContent = () => {
+                        if (isCurrentQueen) {
+                            return {
+                                title: "Royal Decree",
+                                description: "As the reigning Queen, your mandate is to rule the colony. Actions to seize or challenge the throne are forbidden to preserve your sovereignty.",
+                                wins: "Maintain your rule and collect 100 ANT daily.",
+                                losses: "None, your throne is secure for now.",
+                                cost: "None",
+                                warning: "Only challengers may attempt to claim the throne."
+                            };
+                        }
+
+                        switch (action) {
+                            case "becomeQueen":
+                                const cost = isColonyActive ? hillAmount : "5";
+                                const reward = (parseFloat(cost) * 1.4286).toFixed(2);
+                                return {
+                                    title: "Ascend to the Throne",
+                                    description: `Pay ${cost} $M to claim the crown${isColonyActive ? " and overthrow the current Queen" : " and establish the colony"}.`,
+                                    wins: `You become Queen, set the next throne amount to ${reward} $M, earn 100 ANT daily, and may claim the jackpot if you reign for 24 hours.`,
+                                    losses: `If another ant takes the throne, you lose your position. 22% fee on $M withdrawals (12% owner, 5% referral, 5% jackpot).`,
+                                    cost: `${cost} $M + gas fees`,
+                                    warning: "Ensure sufficient $M in your wallet."
+                                };
+                            case "fightQueen":
+                                return {
+                                    title: "Challenge the Queen",
+                                    description: `Wager ${hillAmount} $M in a 50/50 battle to seize the throne.`,
+                                    wins: `Victory grants you the crown, returns your ${hillAmount} $M, earns 100 ANT daily, and a chance at the jackpot after 24 hours.`,
+                                    losses: `Defeat means losing your ${hillAmount} $M to the Queen. 22% fee on $M withdrawals.`,
+                                    cost: `${hillAmount} $M + gas fees`,
+                                    warning: "The battle's outcome is uncertain."
+                                };
+                            case "resetColony":
+                                return {
+                                    title: "Collapse the Colony",
+                                    description: `Pay ${hillAmount} $M to dismantle the colony.`,
+                                    wins: `The colony resets, clearing the throne for a new Queen.`,
+                                    losses: `You lose your ${hillAmount} $M, which benefits the current Queen. 22% fee on $M withdrawals.`,
+                                    cost: `${hillAmount} $M + gas fees`,
+                                    warning: "This action strengthens the reigning Queen."
+                                };
+                            default:
+                                return {};
+                        }
+                    };
+
+                    const { title, description, wins, losses, cost, warning } = getModalContent();
+
+                    return (
+                        <div className="ant-modal">
+                            <div className="ant-modal-content hex-border">
+                                <h2 className="text-2xl font-bold mb-4">{title}</h2>
+                                <p className="mb-4"><strong>Task:</strong> {description}</p>
+                                <p className="mb-4"><strong>Wins:</strong> {wins}</p>
+                                <p className="mb-4"><strong>Losses:</strong> {losses}</p>
+                                <p className="mb-4"><strong>Cost:</strong> {cost}</p>
+                                <p className="text-red-300 mb-6"><strong>Warning:</strong> {warning}</p>
+                                <div className="flex justify-end gap-4">
+                                    <button onClick={onClose} className="ant-button" disabled={loading}>
+                                        Cancel
+                                    </button>
+                                    {!isCurrentQueen && (
+                                        <button onClick={onProceed} className="ant-button" disabled={loading}>
+                                            {loading ? "Working..." : "Proceed"}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+
+                function ActionToast({ message, onClose }) {
+                    useEffect(() => {
+                        const timer = setTimeout(onClose, 5000);
+                        return () => clearTimeout(timer);
+                    }, [onClose]);
+
+                    return (
+                        <div className="action-toast">
+                            <div className="flex justify-between items-center">
+                                <span>{message}</span>
+                                <button onClick={onClose} className="ant-button">Close</button>
+                            </div>
+                        </div>
+                    );
+                }
+
+                function AntHillVisualization({ currentQueen, queenTimer, jackpotBalance }) {
+                    const canvasRef = useRef(null);
+                    const containerRef = useRef(null);
+
+                    useEffect(() => {
+                        if (!canvasRef.current || !containerRef.current || typeof THREE === "undefined") {
+                            console.warn("Three.js not available. Skipping ant hill visualization.");
+                            return;
+                        }
+
+                        try {
+                            const scene = new THREE.Scene();
+                            const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+                            const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, alpha: true });
+
+                            const updateCanvasSize = () => {
+                                const container = containerRef.current;
+                                const width = container.clientWidth;
+                                const height = window.innerWidth <= 768 ? 200 : 300;
+                                renderer.setSize(width, height);
+                                camera.aspect = width / height;
+                                camera.updateProjectionMatrix();
+                            };
+
+                            updateCanvasSize();
+
+                            const geometry = new THREE.CylinderGeometry(1, 2, 1, 6);
+                            const edges = new THREE.EdgesGeometry(geometry);
+                            const material = new THREE.LineBasicMaterial({ color: 0xFFB107 });
+                            const hill = new THREE.LineSegments(edges, material);
+                            scene.add(hill);
+
+                            const pointLight = new THREE.PointLight(0x8BC34A, 1, 100);
+                            pointLight.position.set(5, 5, 5);
+                            scene.add(pointLight);
+
+                            camera.position.z = 5;
+
+                            const animate = () => {
+                                requestAnimationFrame(animate);
+                                hill.rotation.y += 0.01;
+                                renderer.render(scene, camera);
+                            };
+                            animate();
+
+                            const handleResize = () => {
+                                updateCanvasSize();
+                            };
+                            window.addEventListener("resize", handleResize);
+
+                            return () => {
+                                window.removeEventListener("resize", handleResize);
+                                renderer.dispose();
+                            };
+                        } catch (err) {
+                            console.error("Three.js initialization failed:", err);
+                        }
+                    }, []);
+
+                    const formatTimer = (seconds) => {
+                        const hours = Math.floor(seconds / 3600);
+                        const minutes = Math.floor((seconds % 3600) / 60);
+                        const secs = seconds % 60;
+                        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                    };
+
+                    const formatJackpotTimer = () => {
+                        const target = 24 * 3600;
+                        const remaining = Math.max(target - queenTimer, 0);
+                        return formatTimer(remaining);
+                    };
+
+                    return (
+                        <div className="container mx-auto py-8 px-4">
+                            <h2 className="text-3xl font-bold mb-4">Queen’s Chamber</h2>
+                            <div className="ant-card">
+                                <h3 className="text-xl font-bold mb-4">Ant Hill View</h3>
+                                <div ref={containerRef}>
+                                    {typeof THREE === "undefined" ? (
+                                        <p className="text-red-300">3D view not available. Try refreshing or disabling extensions.</p>
+                                    ) : (
+                                        <canvas className="ant-hill-canvas min-h-[200px] md:min-h-[300px]" ref={canvasRef}></canvas>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="queen-card">
+                                <h3 className="text-2xl font-bold mb-4 text-center">Current Queen</h3>
+                                <p className="text-center text-4xl queen-amount md:text-5xl">
+                                    {currentQueen ? `👑 ${currentQueen.slice(0, 6)}...${currentQueen.slice(-4)}` : "None"}
+                                </p>
+                                <p className="text-center mt-2">
+                                    <strong>Reign Timer:</strong> <span className="timer-tick">{queenTimer ? formatTimer(queenTimer) : "N/A"}</span>
+                                </p>
+                            </div>
+                            <div className="jackpot-card">
+                                <h3 className="text-2xl font-bold mb-4 text-center">Jackpot Vault</h3>
+                                <p className="text-center text-4xl jackpot-amount md:text-5xl">{jackpotBalance} $M</p>
+                                <p className="text-center mt-2">
+                                    <strong>Time to Jackpot:</strong> <span className="timer-tick">{formatJackpotTimer()}</span>
+                                </p>
+                                <p className="text-center mt-4 text-sm">
+                                    The Jackpot Vault grows with every $M withdrawal (5% fee). Hold the throne for 24 hours uninterrupted to claim this treasure when overthrown!
+                                </p>
+                            </div>
+                        </div>
+                    );
+                }
+
+                function PaginatedTable({ data, headers, rowsPerPage = 5 }) {
+                    const [currentPage, setCurrentPage] = useState(1);
+                    const totalPages = Math.ceil(data.length / rowsPerPage);
+                    const startIndex = (currentPage - 1) * rowsPerPage;
+                    const currentData = data.slice(startIndex, startIndex + rowsPerPage);
+
+                    return (
+                        <div>
+                            <div className="overflow-x-auto">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            {headers.map((header, index) => (
+                                                <th key={index}>{header}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {currentData.map((row, index) => (
+                                            <tr key={index}>
+                                                {Object.values(row).map((value, i) => (
+                                                    <td key={i}>{value}</td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="pagination">
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className="ant-button"
+                                >
+                                    Prev
+                                </button>
+                                <span>{currentPage} of {totalPages}</span>
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className="ant-button"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+
+                function App() {
+                    const [provider, setProvider] = useState(null);
+                    const [signer, setSigner] = useState(null);
+                    const [colony, setColony] = useState(null);
+                    const [account, setAccount] = useState(null);
+                    const [currentQueen, setCurrentQueen] = useState(null);
+                    const [hillAmount, setHillAmount] = useState(0);
+                    const [workerBalance, setWorkerBalance] = useState(0);
+                    const [antBalance, setAntBalance] = useState(0);
+                    const [referralBalance, setReferralBalance] = useState(0);
+                    const [colonyBalance, setColonyBalance] = useState(0);
+                    const [jackpotBalance, setJackpotBalance] = useState(0);
+                    const [isColonyActive, setIsColonyActive] = useState(false);
+                    const [history, setHistory] = useState([]);
+                    const [fightHistory, setFightHistory] = useState([]);
+                    const [personalStats, setPersonalStats] = useState([]);
+                    const [queenTimer, setQueenTimer] = useState(0);
+                    const [colonyEvents, setColonyEvents] = useState([]);
+                    const [error, setError] = useState("");
+                    const [actionResult, setActionResult] = useState("");
+                    const [loading, setLoading] = useState(false);
+                    const [activeSection, setActiveSection] = useState("dashboard");
+                    const [modalOpen, setModalOpen] = useState(false);
+                    const [modalAction, setModalAction] = useState(null);
+                    const [expandedQuestion, setExpandedQuestion] = useState(null);
+                    const [referralCount, setReferralCount] = useState(0);
+
+                    const eventMessages = {
+                        NewQueen: [
+                            "A new Queen ascends to rule the colony!",
+                            "The ants rally behind their new sovereign!",
+                            "A mighty Queen claims the throne!"
+                        ],
+                        FightResultWin: [
+                            "The challenger triumphs and seizes the crown!",
+                            "A new Queen emerges victorious!",
+                            "The throne falls to a bold new ruler!"
+                        ],
+                        FightResultLose: [
+                            "The challenger falls, and the Queen prevails!",
+                            "The Queen defends her throne with might!",
+                            "The fight is lost, and the Queen reigns supreme!"
+                        ],
+                        ColonyReset: [
+                            "The colony crumbles and begins anew!",
+                            "An ant resets the hill, empowering the Queen!",
+                            "The colony is razed, awaiting a new dawn!"
+                        ],
+                        JackpotAwarded: [
+                            "The Queen seizes the grand jackpot!",
+                            "A fortunate Queen claims the vault's riches!",
+                            "The jackpot crowns the reigning Queen!"
+                        ],
+                        ReferralAdded: [
+                            "A new ant joins the colony through your call!",
+                            "The colony grows with your referred ally!",
+                            "A fresh worker bolsters the hill's ranks!"
+                        ]
+                    };
+
+                    const getEthereumProvider = () => {
+                        console.log("Checking for Ethereum provider...");
+                        if (!window.ethereum) {
+                            console.warn("No Ethereum provider found.");
+                            return null;
+                        }
+                        if (window.ethereum.isMetaMask) {
+                            console.log("MetaMask provider detected.");
+                            return window.ethereum;
+                        }
+                        if (window.ethereum.providers && window.ethereum.providers.length) {
+                            const metaMaskProvider = window.ethereum.providers.find(p => p.isMetaMask) || window.ethereum.providers[0];
+                            console.log("Using provider:", metaMaskProvider.isMetaMask ? "MetaMask" : "Other");
+                            return metaMaskProvider;
+                        }
+                        console.log("Using default Ethereum provider.");
+                        return window.ethereum;
+                    };
+
+                    const connectWallet = async () => {
+                        console.log("Initiating wallet connection...");
+                        setLoading(true);
+                        try {
+                            const ethereum = getEthereumProvider();
+                            if (!ethereum) {
+                                throw new Error("MetaMask is not installed. Please install it.");
+                            }
+
+                            const chainId = await ethereum.request({ method: "eth_chainId" });
+                            console.log("Current chain ID:", chainId);
+                            if (chainId !== "0xaa01") {
+                                console.log("Requesting switch to MemeCore Testnet...");
+                                try {
+                                    await ethereum.request({
+                                        method: "wallet_switchEthereumChain",
+                                        params: [{ chainId: "0xaa01" }],
+                                    });
+                                } catch (switchError) {
+                                    if (switchError.code === 4902) {
+                                        console.log("MemeCore Testnet not found, adding chain...");
+                                        await ethereum.request({
+                                            method: "wallet_addEthereumChain",
+                                            params: [{
+                                                chainId: "0xaa01",
+                                                chainName: "MemeCore Testnet",
+                                                rpcUrls: ["https://rpc.formicarium.memecore.net/"],
+                                                nativeCurrency: { name: "Memecore Testnet", symbol: "M", decimals: 18 },
+                                                blockExplorerUrls: ["https://formicarium.memecorescan.io/"]
+                                            }],
+                                        });
+                                    } else {
+                                        throw switchError;
+                                    }
+                                }
+                            }
+
+                            console.log("Requesting accounts...");
+                            const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+                            console.log("Accounts received:", accounts);
+                            if (!accounts || accounts.length === 0) {
+                                throw new Error("No accounts found. Add an account in MetaMask and use MemeCore Testnet.");
+                            }
+
+                            const provider = new ethers.providers.Web3Provider(ethereum);
+                            const signer = provider.getSigner();
+                            const address = await signer.getAddress();
+                            console.log("Connected address:", address);
+                            const colony = new ethers.Contract(colonyAddress, colonyABI, signer);
+                            setProvider(provider);
+                            setSigner(signer);
+                            setColony(colony);
+                            setAccount(address);
+                            setError("");
+                            localStorage.setItem("connectedWallet", address);
+                            updateColonyState(colony, address);
+
+                            const urlParams = new URLSearchParams(window.location.search);
+                            const referrer = urlParams.get("referrer");
+                            if (referrer && ethers.utils.isAddress(referrer) && referrer.toLowerCase() !== address.toLowerCase()) {
+                                try {
+                                    const tx = await colony.becomeKing(referrer, { value: 0 });
+                                    await tx.wait();
+                                    setError("Successfully referred by " + referrer.slice(0, 6) + "..." + referrer.slice(-4));
+                                } catch (err) {
+                                    console.error("Referral failed:", err);
+                                    setError("Failed to process referral: " + err.message);
+                                }
+                            }
+
+                            if (window.ethereum.providers && window.ethereum.providers.length > 1) {
+                                setError("Multiple wallets detected. Disable others to avoid issues.");
+                            }
+                        } catch (err) {
+                            console.error("Wallet connection failed:", err);
+                            if (err.code === 4001) {
+                                setError("You rejected the connection. Approve it in MetaMask.");
+                            } else if (err.message.includes("wallet must has at least one account")) {
+                                setError("No accounts in MetaMask. Add an account and use MemeCore Testnet.");
+                            } else {
+                                setError(`Can't connect wallet: ${err.message}`);
+                            }
+                        } finally {
+                            setLoading(false);
+                        }
+                    };
+
+                    const disconnectWallet = () => {
+                        setProvider(null);
+                        setSigner(null);
+                        setColony(null);
+                        setAccount(null);
+                        localStorage.removeItem("connectedWallet");
+                        setError("Wallet disconnected.");
+                    };
+
+                    const updateColonyState = async (colony, address) => {
+                        if (!colony || !address) return;
+                        try {
+                            const queen = await colony.currentKing();
+                            const hill = await colony.throneAmount();
+                            const ethBalance = await colony.dashboard(address);
+                            const tokenBalance = await colony.passiveIncome(address);
+                            const referralBal = await colony.referralEarnings(address);
+                            const colonyBal = await colony.getContractBalance();
+                            const jackpotBal = await colony.jackpotBalance();
+                            const active = await colony.isGameActive();
+                            const queenStart = await colony.kingStartTime();
+                            const [referrer, count, balance] = await colony.getReferralStats(address);
+                            setCurrentQueen(queen);
+                            setHillAmount(ethers.utils.formatEther(hill));
+                            setWorkerBalance(ethers.utils.formatEther(ethBalance));
+                            setAntBalance(ethers.utils.formatUnits(tokenBalance, 18));
+                            setReferralBalance(ethers.utils.formatEther(referralBal));
+                            setColonyBalance(ethers.utils.formatEther(colonyBal));
+                            setJackpotBalance(ethers.utils.formatEther(jackpotBal));
+                            setIsColonyActive(active);
+                            setQueenTimer(active ? Math.floor((Date.now() / 1000) - queenStart.toNumber()) : 0);
+                            setReferralCount(count.toNumber());
+                            updateHistory(colony);
+                            updateFightHistory(colony);
+                            updateColonyEvents(colony);
+                            updatePersonalStats(colony, address);
+                        } catch (err) {
+                            setError("Can't load colony data: " + err.message);
+                        }
+                    };
+
+                    const updateHistory = async (colony) => {
+                        if (!colony) return;
+                        try {
+                            const reign = await colony.getLastReign();
+                            const historyData = [{
+                                queen: reign[0].slice(0, 6) + "..." + reign[0].slice(-4),
+                                startTime: new Date(reign[1].toNumber() * 1000).toLocaleString(),
+                                endTime: reign[2].toNumber() ? new Date(reign[2].toNumber() * 1000).toLocaleString() : "Ongoing",
+                                hillAmount: ethers.utils.formatEther(reign[3]),
+                                ethEarnings: ethers.utils.formatEther(reign[4]),
+                                antEarnings: ethers.utils.formatUnits(reign[5], 18)
+                            }];
+                            setHistory(historyData);
+                        } catch (err) {
+                            setError("Can't load history: " + err.message);
+                        }
+                    };
+
+                    const updateFightHistory = async (colony) => {
+                        if (!colony) return;
+                        try {
+                            const count = await colony.getRecentWarCount();
+                            const fightData = [];
+                            for (let i = 0; i < Math.min(count.toNumber(), 10); i++) {
+                                const fight = await colony.getRecentWar(i);
+                                fightData.push({
+                                    challenger: fight[0].slice(0, 6) + "..." + fight[0].slice(-4),
+                                    queen: fight[1].slice(0, 6) + "..." + fight[1].slice(-4),
+                                    challengerWon: fight[2] ? "Won" : "Lost",
+                                    timestamp: new Date(fight[3].toNumber() * 1000).toLocaleString(),
+                                    betAmount: ethers.utils.formatEther(fight[4])
+                                });
+                            }
+                            setFightHistory(fightData.reverse());
+                        } catch (err) {
+                            setError("Can't load fight history: " + err.message);
+                        }
+                    };
+
+                    const updatePersonalStats = async (colony, address) => {
+                        if (!colony || !address) return;
+                        try {
+                            const activities = [];
+                            const filterNewQueen = colony.filters.NewKing(address);
+                            const filterFightResult = colony.filters.WarResult(address, null, null, null, null);
+                            const filterReset = colony.filters.KingdomDissolved(null, address);
+                            const filterJackpot = colony.filters.JackpotAwarded(address, null);
+                            const eventsNewQueen = await colony.queryFilter(filterNewQueen);
+                            const eventsFightResult = await colony.queryFilter(filterFightResult);
+                            const eventsReset = await colony.queryFilter(filterReset);
+                            const eventsJackpot = await colony.queryFilter(filterJackpot);
+
+                            eventsNewQueen.forEach(event => {
+                                if (event.args && event.args.amount && event.args.timestamp) {
+                                    activities.push({
+                                        activity: `You became Queen with ${ethers.utils.formatEther(event.args.amount)} $M`,
+                                        timestamp: new Date(event.args.timestamp.toNumber() * 1000).toLocaleString(),
+                                        ethInvolved: ethers.utils.formatEther(event.args.amount)
+                                    });
+                                } else {
+                                    console.warn("Skipping NewKing event with missing args:", event);
+                                }
+                            });
+
+                            eventsFightResult.forEach(event => {
+                                if (event.args && event.args.betAmount && event.args.timestamp) {
+                                    const message = event.args.challengerWon
+                                        ? `You defeated ${event.args.king.slice(0, 6)}...${event.args.king.slice(-4)} with ${ethers.utils.formatEther(event.args.betAmount)} $M`
+                                        : `${event.args.challenger.slice(0, 6)}...${event.args.challenger.slice(-4)} defeated you with ${ethers.utils.formatEther(event.args.betAmount)} $M`;
+                                    activities.push({
+                                        activity: message,
+                                        timestamp: new Date(event.args.timestamp.toNumber() * 1000).toLocaleString(),
+                                        ethInvolved: ethers.utils.formatEther(event.args.betAmount)
+                                    });
+                                } else {
+                                    console.warn("Skipping WarResult event with missing args:", event);
+                                }
+                            });
+
+                            eventsReset.forEach(event => {
+                                if (event.args && event.args.amount && event.args.timestamp) {
+                                    activities.push({
+                                        activity: `You reset the colony with ${ethers.utils.formatEther(event.args.amount)} $M`,
+                                        timestamp: new Date(event.args.timestamp.toNumber() * 1000).toLocaleString(),
+                                        ethInvolved: ethers.utils.formatEther(event.args.amount)
+                                    });
+                                } else {
+                                    console.warn("Skipping KingdomDissolved event with missing args:", event);
+                                }
+                            });
+
+                            eventsJackpot.forEach(event => {
+                                if (event.args && event.args.amount && event.args.timestamp) {
+                                    activities.push({
+                                        activity: `You won the jackpot of ${ethers.utils.formatEther(event.args.amount)} $M`,
+                                        timestamp: new Date(event.args.timestamp.toNumber() * 1000).toLocaleString(),
+                                        ethInvolved: ethers.utils.formatEther(event.args.amount)
+                                    });
+                                } else {
+                                    console.warn("Skipping JackpotAwarded event with missing args:", event);
+                                }
+                            });
+
+                            activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                            setPersonalStats(activities.slice(0, 5));
+                        } catch (err) {
+                            console.error("Error in updatePersonalStats:", err);
+                            setError("Can't load personal stats: " + err.message);
+                        }
+                    };
+
+                    const updateColonyEvents = async (colony) => {
+                        if (!colony) return;
+                        try {
+                            const newEvents = [];
+                            const filterNewQueen = colony.filters.NewKing();
+                            const filterFightResult = colony.filters.WarResult();
+                            const filterReset = colony.filters.KingdomDissolved();
+                            const filterJackpot = colony.filters.JackpotAwarded();
+                            const filterReferral = colony.filters.Referred();
+                            const eventsNewQueen = await colony.queryFilter(filterNewQueen);
+                            const eventsFightResult = await colony.queryFilter(filterFightResult);
+                            const eventsReset = await colony.queryFilter(filterReset);
+                            const eventsJackpot = await colony.queryFilter(filterJackpot);
+                            const eventsReferral = await colony.queryFilter(filterReferral);
+
+                            eventsNewQueen.forEach(event => {
+                                const message = eventMessages.NewQueen[Math.floor(Math.random() * eventMessages.NewQueen.length)];
+                                newEvents.push({ type: "NewQueen", message, timestamp: event.args.timestamp.toNumber() });
+                            });
+                            eventsFightResult.forEach(event => {
+                                const message = event.args.challengerWon
+                                    ? eventMessages.FightResultWin[Math.floor(Math.random() * eventMessages.FightResultWin.length)]
+                                    : eventMessages.FightResultLose[Math.floor(Math.random() * eventMessages.FightResultLose.length)];
+                                newEvents.push({ type: "FightResult", message, timestamp: event.args.timestamp.toNumber() });
+                            });
+                            eventsReset.forEach(event => {
+                                const message = eventMessages.ColonyReset[Math.floor(Math.random() * eventMessages.ColonyReset.length)];
+                                newEvents.push({ type: "ColonyReset", message, timestamp: event.args.timestamp.toNumber() });
+                            });
+                            eventsJackpot.forEach(event => {
+                                const message = eventMessages.JackpotAwarded[Math.floor(Math.random() * eventMessages.JackpotAwarded.length)];
+                                newEvents.push({ type: "JackpotAwarded", message, timestamp: event.args.timestamp.toNumber() });
+                            });
+                            eventsReferral.forEach(event => {
+                                const message = eventMessages.ReferralAdded[Math.floor(Math.random() * eventMessages.ReferralAdded.length)];
+                                newEvents.push({ type: "ReferralAdded", message, timestamp: event.args.timestamp.toNumber() });
+                            });
+
+                            newEvents.sort((a, b) => b.timestamp - a.timestamp);
+                            setColonyEvents(newEvents.slice(0, 6));
+                        } catch (err) {
+                            setError("Can't load colony events: " + err.message);
+                        }
+                    };
+
+                    const formatTimer = (seconds) => {
+                        const hours = Math.floor(seconds / 3600);
+                        const minutes = Math.floor((seconds % 3600) / 60);
+                        const secs = seconds % 60;
+                        return `${hours}h ${minutes}m ${secs}s`;
+                    };
+
+                    const handleBecomeQueen = async () => {
+                        if (!colony || !signer) return setError("Connect your wallet first.");
+                        setLoading(true);
+                        try {
+                            const amount = isColonyActive ? ethers.utils.parseEther(hillAmount.toString()) : ethers.utils.parseEther("5");
+                            const tx = await colony.becomeKing("0x0000000000000000000000000000000000000000", { value: amount });
+                            const receipt = await tx.wait();
+                            const success = receipt.status === 1;
+                            setActionResult(success ? "You have ascended as the new Queen!" : "Failed to become Queen.");
+                            updateColonyState(colony, account);
+                        } catch (err) {
+                            setActionResult("Failed to become Queen: " + err.message);
+                        } finally {
+                            setLoading(false);
+                            setModalOpen(false);
+                        }
+                    };
+
+                    const handleFightQueen = async () => {
+                        if (!colony || !signer) return setError("Connect your wallet first.");
+                        setLoading(true);
+                        try {
+                            const amount = ethers.utils.parseEther(hillAmount.toString());
+                            const tx = await colony.warKing({ value: amount });
+                            const receipt = await tx.wait();
+                            const success = receipt.status === 1;
+                            setActionResult(success ? "Victory! You are now the Queen!" : "Defeat! The Queen remains.");
+                            updateColonyState(colony, account);
+                        } catch (err) {
+                            setActionResult("Fight failed: " + err.message);
+                        } finally {
+                            setLoading(false);
+                            setModalOpen(false);
+                        }
+                    };
+
+                    const handleResetColony = async () => {
+                        if (!colony || !signer) return setError("Connect your wallet first.");
+                        setLoading(true);
+                        try {
+                            const amount = ethers.utils.parseEther(hillAmount.toString());
+                            const tx = await colony.dissolveKingdom({ value: amount });
+                            const receipt = await tx.wait();
+                            const success = receipt.status === 1;
+                            setActionResult(success ? "The colony has been reset!" : "Failed to reset colony.");
+                            updateColonyState(colony, account);
+                        } catch (err) {
+                            setActionResult("Reset failed: " + err.message);
+                        } finally {
+                            setLoading(false);
+                            setModalOpen(false);
+                        }
+                    };
+
+                    const handleWithdraw$M = async () => {
+                        if (!colony || !signer) return setError("Connect your wallet first.");
+                        setLoading(true);
+                        try {
+                            const tx = await colony.withdraw$M();
+                            await tx.wait();
+                            setError("$M withdrawn! 22% fee applied (12% owner, 5% referral, 5% jackpot).");
+                            updateColonyState(colony, account);
+                        } catch (err) {
+                            setError("Can't withdraw $M: " + err.message);
+                        } finally {
+                            setLoading(false);
+                        }
+                    };
+
+                    const handleWithdrawReferralEarnings = async () => {
+                        if (!colony || !signer) return setError("Connect your wallet first.");
+                        setLoading(true);
+                        try {
+                            const tx = await colony.withdrawReferralEarnings();
+                            await tx.wait();
+                            setError("Referral $M withdrawn! No fees applied.");
+                            updateColonyState(colony, account);
+                        } catch (err) {
+                            setError("Can't withdraw referral earnings: " + err.message);
+                        } finally {
+                            setLoading(false);
+                        }
+                    };
+
+                    const handleWithdrawTokens = async () => {
+                        if (!colony || !signer) return setError("Connect your wallet first.");
+                        setLoading(true);
+                        try {
+                            const tx = await colony.withdrawTokens();
+                            await tx.wait();
+                            setError("ANT tokens withdrawn!");
+                            updateColonyState(colony, account);
+                        } catch (err) {
+                            setError("Can't withdraw tokens: " + err.message);
+                        } finally {
+                            setLoading(false);
+                        }
+                    };
+
+                    const openModal = (action) => {
+                        setModalAction(action);
+                        setModalOpen(true);
+                    };
+
+                    const handleProceed = () => {
+                        switch (modalAction) {
+                            case "becomeQueen": handleBecomeQueen(); break;
+                            case "fightQueen": handleFightQueen(); break;
+                            case "resetColony": handleResetColony(); break;
+                            default: break;
+                        }
+                    };
+
+                    const toggleQuestion = (index) => {
+                        setExpandedQuestion(expandedQuestion === index ? null : index);
+                    };
+
+                    const getReferralLink = () => {
+                        if (!account) return "";
+                        return `${window.location.origin}?referrer=${account}`;
+                    };
+
+                    const copyReferralLink = () => {
+                        const link = getReferralLink();
+                        navigator.clipboard.writeText(link);
+                        setError("Referral link copied to clipboard!");
+                    };
+
+                    const isCurrentQueen = account && currentQueen && account.toLowerCase() === currentQueen.toLowerCase();
+
+                    useEffect(() => {
+                        const savedAddress = localStorage.getItem("connectedWallet");
+                        if (savedAddress && !account) {
+                            const ethereum = getEthereumProvider();
+                            if (ethereum) {
+                                const provider = new ethers.providers.Web3Provider(ethereum);
+                                const signer = provider.getSigner();
+                                const colony = new ethers.Contract(colonyAddress, colonyABI, signer);
+                                setProvider(provider);
+                                setSigner(signer);
+                                setColony(colony);
+                                setAccount(savedAddress);
+                                updateColonyState(colony, savedAddress);
+                            }
+                        }
+                    }, []);
+
+                    useEffect(() => {
+                        if (isColonyActive) {
+                            const interval = setInterval(() => {
+                                setQueenTimer(prev => prev + 1);
+                            }, 1000);
+                            return () => clearInterval(interval);
+                        }
+                    }, [isColonyActive]);
+
+                    useEffect(() => {
+                        if (error) {
+                            const timer = setTimeout(() => setError(""), 10000);
+                            return () => clearTimeout(timer);
+                        }
+                    }, [error]);
+
+                    useEffect(() => {
+                        const ethereum = getEthereumProvider();
+                        if (ethereum) {
+                            ethereum.on("accountsChanged", (accounts) => {
+                                if (accounts.length > 0) {
+                                    setAccount(accounts[0]);
+                                    localStorage.setItem("connectedWallet", accounts[0]);
+                                    updateColonyState(colony, accounts[0]);
+                                } else {
+                                    disconnectWallet();
+                                }
+                            });
+                            ethereum.on("chainChanged", () => {
+                                window.location.reload();
+                            });
+                        }
+                    }, [colony]);
+
+                    const getButtonTooltip = (action) => {
+                        if (loading) return "Action in progress, please wait.";
+                        if (!colony || !signer) return "Connect your wallet to perform this action.";
+                        if (isCurrentQueen) return "You are the Queen and cannot perform this action.";
+                        if (action === "fightQueen" && !isColonyActive) return "No active Queen to fight.";
+                        if (action === "resetColony" && !isColonyActive) return "No active colony to reset.";
+                        return "";
+                    };
+
+                    return (
+                        <div>
+                            <nav className="flex flex-col md:flex-row justify-between items-center">
+                                <h1 className="ant-header mb-4 md:mb-0">Ant Kingdom</h1>
+                                <div className="flex gap-4 flex-wrap justify-center">
+                                    <button onClick={() => setActiveSection("dashboard")} className="ant-button nav-text">Dashboard</button>
+                                    <button onClick={() => setActiveSection("chamber")} className="ant-button nav-text">Queen’s Chamber</button>
+                                    <button onClick={() => setActiveSection("history")} className="ant-button nav-text">History</button>
+                                    <button onClick={() => setActiveSection("referral")} className="ant-button nav-text">Referral</button>
+                                    <button onClick={() => setActiveSection("faq")} className="ant-button nav-text">FAQ</button>
+                                    {account ? (
+                                        <>
+                                            <button className="ant-button" disabled={loading}>
+                                                {account.slice(0, 6)}...${account.slice(-4)}
+                                            </button>
+                                            <button onClick={disconnectWallet} className="ant-button" disabled={loading}>
+                                                Disconnect
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button onClick={connectWallet} className="ant-button" disabled={loading}>
+                                            {loading ? "Connecting..." : "Connect Wallet"}
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="flex gap-2 md:hidden mt-4">
+                                    <button onClick={() => setActiveSection("dashboard")} className="ant-button nav-icon">🏠</button>
+                                    <button onClick={() => setActiveSection("chamber")} className="ant-button nav-icon">👑</button>
+                                    <button onClick={() => setActiveSection("history")} className="ant-button nav-icon">📜</button>
+                                    <button onClick={() => setActiveSection("referral")} className="ant-button nav-icon">🤝</button>
+                                    <button onClick={() => setActiveSection("faq")} className="ant-button nav-icon">❓</button>
+                                </div>
+                            </nav>
+
+                            {error && (
+                                <div className="error-alert">
+                                    <span>{error}</span>
+                                    <button onClick={() => setError("")}>Close</button>
+                                </div>
+                            )}
+
+                            {actionResult && (
+                                <ActionToast
+                                    message={actionResult}
+                                    onClose={() => setActionResult("")}
+                                />
+                            )}
+
+                            {activeSection === "dashboard" && (
+                                <div className="container mx-auto py-8 px-4">
+                                    <h2 className="text-3xl font-bold mb-4">Worker Dashboard</h2>
+                                    {currentQueen && (
+                                        <div className="queen-tribute">
+                                            <h3 className="text-2xl font-bold mb-4 text-center">Hail the Queen</h3>
+                                            <p className="text-center text-3xl md:text-4xl">
+                                                👑 {currentQueen.slice(0, 6)}...${currentQueen.slice(-4)}
+                                            </p>
+                                            <p className="text-center mt-2 italic">
+                                                All bow to the mighty Queen, sovereign of the colony, whose reign brings glory to the hill!
+                                            </p>
+                                        </div>
+                                    )}
+                                    <div className="ant-card">
+                                        <h3 className="text-xl font-bold mb-4">Your Stats</h3>
+                                        <div className="stats-grid">
+                                            <div className="stats-card">
+                                                <h4>$M Balance</h4>
+                                                <p className="text-2xl">💰 {workerBalance} $M</p>
+                                            </div>
+                                            <div className="stats-card">
+                                                <h4>ANT Balance</h4>
+                                                <p className="text-2xl">🐜 {antBalance} ANT</p>
+                                            </div>
+                                            <div className="stats-card">
+                                                <h4>Referral Earnings</h4>
+                                                <p className="text-2xl">🤝 {referralBalance} $M</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-4 mt-4 flex-wrap">
+                                            <button onClick={handleWithdraw$M} className="ant-button" disabled={loading || workerBalance <= 0}>
+                                                Withdraw $M
+                                            </button>
+                                            <button onClick={handleWithdrawReferralEarnings} className="ant-button" disabled={loading || referralBalance <= 0}>
+                                                Withdraw Referral $M
+                                            </button>
+                                            <button onClick={handleWithdrawTokens} className="ant-button" disabled={loading || antBalance <= 0}>
+                                                Withdraw ANT
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="ant-card">
+                                        <h3 className="text-xl font-bold mb-4">Actions</h3>
+                                        <div className="flex flex-wrap gap-4">
+                                            <button
+                                                onClick={() => openModal("becomeQueen")}
+                                                className="ant-button"
+                                                disabled={loading || isCurrentQueen || !colony || !signer}
+                                                title={getButtonTooltip("becomeQueen")}
+                                            >
+                                                Become Queen
+                                            </button>
+                                            <button
+                                                onClick={() => openModal("fightQueen")}
+                                                className="ant-button"
+                                                disabled={loading || !isColonyActive || isCurrentQueen || !colony || !signer}
+                                                title={getButtonTooltip("fightQueen")}
+                                            >
+                                                Fight the Queen
+                                            </button>
+                                            <button
+                                                onClick={() => openModal("resetColony")}
+                                                className="ant-button"
+                                                disabled={loading || !isColonyActive || isCurrentQueen || !colony || !signer}
+                                                title={getButtonTooltip("resetColony")}
+                                            >
+                                                Reset Colony
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="ant-card">
+                                        <h3 className="text-xl font-bold mb-4">Colony Stats</h3>
+                                        <div className="stats-grid">
+                                            <div className="stats-card">
+                                                <h4>Colony Balance</h4>
+                                                <p>{colonyBalance} $M</p>
+                                            </div>
+                                            <div className="stats-card">
+                                                <h4>Jackpot</h4>
+                                                <p>{jackpotBalance} $M</p>
+                                            </div>
+                                            <div className="stats-card">
+                                                <h4>Throne Amount</h4>
+                                                <p>{hillAmount} $M</p>
+                                            </div>
+                                            <div className="stats-card">
+                                                <h4>Colony Status</h4>
+                                                <p>{isColonyActive ? "Active" : "Inactive"}</p>
+                                            </div>
+                                            <div className="stats-card">
+                                                <h4>Queen’s Reign</h4>
+                                                <p>{queenTimer ? formatTimer(queenTimer) : "N/A"}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="ant-card">
+                                        <h3 className="text-xl font-bold mb-4">Recent Events</h3>
+                                        <ul className="list-disc pl-6">
+                                            {colonyEvents.map((event, index) => (
+                                                <li key={index}>
+                                                    {event.message} - {new Date(event.timestamp * 1000).toLocaleString()}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeSection === "chamber" && (
+                                <AntHillVisualization currentQueen={currentQueen} queenTimer={queenTimer} jackpotBalance={jackpotBalance} />
+                            )}
+
+                            {activeSection === "history" && (
+                                <div className="container mx-auto py-8 px-4">
+                                    <h2 className="text-3xl font-bold mb-4">Colony History</h2>
+                                    <div className="ant-card">
+                                        <h3 className="text-xl font-bold mb-4">Current or Last Queen</h3>
+                                        <PaginatedTable
+                                            data={history}
+                                            headers={["Queen", "Start Time", "End Time", "Throne Amount ($M)", "$M Earnings", "ANT Earnings"]}
+                                        />
+                                    </div>
+                                    <div className="ant-card">
+                                        <h3 className="text-xl font-bold mb-4">Your Recent Activity</h3>
+                                        <PaginatedTable
+                                            data={personalStats}
+                                            headers={["Activity", "Timestamp", "$M Involved"]}
+                                        />
+                                    </div>
+                                    <div className="ant-card">
+                                        <h3 className="text-xl font-bold mb-4">Recent Fight Logs (Last 10)</h3>
+                                        <PaginatedTable
+                                            data={fightHistory}
+                                            headers={["Challenger", "Queen", "Result", "Timestamp", "Bet Amount ($M)"]}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeSection === "referral" && (
+                                <div className="container mx-auto py-8 px-4">
+                                    <h2 className="text-3xl font-bold mb-4">Referral Program</h2>
+                                    <div className="ant-card">
+                                        <h3 className="text-xl font-bold mb-4">Your Referral Stats</h3>
+                                        <p><strong>Referral Earnings:</strong> {referralBalance} $M</p>
+                                        <p><strong>Referred Users:</strong> {referralCount}</p>
+                                        {account ? (
+                                            <div className="mt-4">
+                                                <p><strong>Your Referral Link:</strong></p>
+                                                <input
+                                                    type="text"
+                                                    value={getReferralLink()}
+                                                    readOnly
+                                                    className="w-full p-2 mt-2 bg-gray-800 text-white rounded"
+                                                />
+                                                <button onClick={copyReferralLink} className="ant-button mt-2">
+                                                    Copy Link
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <p className="mt-4">Connect your wallet to get your referral link.</p>
+                                        )}
+                                        <p className="mt-4">
+                                            <strong>How it works:</strong> Share your referral link with others. When they join and connect their wallet, they’re bonded to you permanently. You earn 5% of their $M withdrawals, withdrawable separately with no fees.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeSection === "faq" && (
+                                <div className="container mx-auto py-8 px-4">
+                                    <h2 className="text-3xl font-bold mb-4">FAQ</h2>
+                                    <div className="ant-card">
+                                        {[
+                                            {
+                                                question: "What is Ant Kingdom?",
+                                                answer: "Ant Kingdom is a Web3 game where you can become the Queen by paying $M, fight the Queen for a chance to take over, or reset the colony. Queens earn ANT tokens and $M, and holding the throne for 24 hours wins the jackpot."
+                                            },
+                                            {
+                                                question: "How do I become the Queen?",
+                                                answer: "Pay the throne amount (5 $M if no Queen, or the current throne amount). You’ll rule until another ant takes over or the colony is reset. You earn 100 ANT daily and may win the jackpot."
+                                            },
+                                            {
+                                                question: "What is fighting the Queen?",
+                                                answer: "Bet the throne amount for a 50/50 chance to become Queen. If you win, you take the throne. If you lose, the Queen keeps your $M."
+                                            },
+                                            {
+                                                question: "What is the jackpot?",
+                                                answer: "5% of every $M withdrawal goes to the jackpot. Hold the throne for 24 hours uninterrupted to win it when you’re overthrown."
+                                            },
+                                            {
+                                                question: "How does the referral system work?",
+                                                answer: "Share your referral link. When someone joins via your link, they’re bonded to you. You earn 5% of their $M withdrawals, withdrawable separately with no fees."
+                                            }
+                                        ].map((faq, index) => (
+                                            <div key={index} className="mb-4">
+                                                <div className="accordion-header" onClick={() => toggleQuestion(index)}>
+                                                    <span>{faq.question}</span>
+                                                    <span>{expandedQuestion === index ? "−" : "+"}</span>
+                                                </div>
+                                                {expandedQuestion === index && (
+                                                    <div className="accordion-content">
+                                                        <p>{faq.answer}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <ActionModal
+                                isOpen={modalOpen}
+                                onClose={() => setModalOpen(false)}
+                                action={modalAction}
+                                hillAmount={hillAmount}
+                                isColonyActive={isColonyActive}
+                                onProceed={handleProceed}
+                                loading={loading}
+                                isCurrentQueen={isCurrentQueen}
+                            />
+
+                            <footer>
+                                <p>Ant Kingdom © 2025 - Built for the Colony</p>
+                            </footer>
+                        </div>
+                    );
+                }
+
+                try {
+                    console.log("Attempting to render React app...");
+                    ReactDOM.render(<App />, document.getElementById("root"));
+                    console.log("React app rendered successfully.");
+                } catch (err) {
+                    console.error("React rendering failed:", err);
+                    document.getElementById("root").innerHTML = `
+                        <div className="container mx-auto py-8 px-4 text-red-300">
+                            <h1 className="text-3xl font-bold">Colony Error</h1>
+                            <p>Failed to load the colony: ${err.message}</p>
+                            <ul className="list-disc pl-6">
+                                <li>Refresh the page.</li>
+                                <li>Disable ad blockers or extensions like uBlock, Privacy Badger, or Telegram Web.</li>
+                                <li>Check your internet connection and DNS.</li>
+                                <li>Use Chrome or Firefox.</li>
+                                <li>Run the page on a local server (e.g., 'python -m http.server').</li>
+                            </ul>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                console.error("Initial script execution failed:", err);
+                document.getElementById("root").innerHTML = `
+                    <div className="container mx-auto py-8 px-4 text-red-300">
+                        <h1 className="text-3xl font-bold">Colony Error</h1>
+                        <p>Failed to initialize the colony: ${err.message}</p>
+                        <ul className="list-disc pl-6">
+                            <li>Refresh the page.</li>
+                            <li>Disable ad blockers or extensions like uBlock, Privacy Badger, or Telegram Web.</li>
+                            <li>Check your internet connection and DNS.</li>
+                            <li>Use Chrome or Firefox.</li>
+                            <li>Run the page on a local server (e.g., 'python -m http.server').</li>
+                        </ul>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
