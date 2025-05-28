@@ -207,7 +207,7 @@
                 const [referralCount, setReferralCount] = useState(0);
                 const [chainId, setChainId] = useState(null);
                 const [jackpotEligible, setJackpotEligible] = useState(false);
-                const [fees, setFees] = useState({ withdrawalFee: 12, jackpotFee: 5, referralFee: 5 }); // Static fees
+                const [fees, setFees] = useState({ withdrawalFee: 12, jackpotFee: 5, referralFee: 5 });
 
                 function getStateWithPrecision(value, decimals = 18) {
                     const [setValue, setState] = useState(value);
@@ -230,6 +230,18 @@
 
                 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+                const memecoreTestnetConfig = {
+                    chainId: "0xaa01",
+                    chainName: "MemeCore Testnet",
+                    nativeCurrency: {
+                        name: "Ethereum",
+                        symbol: "ETH",
+                        decimals: 18
+                    },
+                    rpcUrls: ["https://testnet-rpc.memecore.io"],
+                    blockExplorerUrls: ["https://testnet-explorer.memecore.io"]
+                };
+
                 const connectWallet = async () => {
                     setLoading(true);
                     try {
@@ -239,50 +251,70 @@
                             throw new Error("MetaMask not installed or no Ethereum provider found. Please install MetaMask.");
                         }
 
+                        // Check for available accounts first
+                        let accounts = [];
+                        try {
+                            accounts = await ethereum.request({ method: "eth_accounts" });
+                            console.log("Available accounts:", accounts);
+                            if (!accounts.length) {
+                                // Request accounts if none are available
+                                accounts = await ethereum.request({ method: "eth_requestAccounts" });
+                                console.log("Requested accounts:", accounts);
+                            }
+                        } catch (err) {
+                            if (err.code === 4001) {
+                                throw new Error("User rejected the connection request.");
+                            } else if (err.code === -32002) {
+                                throw new Error("MetaMask is already processing a request. Please check MetaMask.");
+                            } else {
+                                throw new Error("Failed to access accounts: Wallet must have at least one account. Please unlock MetaMask or create an account.");
+                            }
+                        }
+                        if (!accounts?.length) {
+                            throw new Error("No accounts found. Please ensure MetaMask is unlocked and has at least one account.");
+                        }
+
+                        // Handle chain switching or addition
                         let fetchedChainId = "Unknown";
                         try {
-                            let attempts = 0;
-                            const maxAttempts = 3;
-                            while (attempts < maxAttempts) {
+                            fetchedChainId = await ethereum.request({ method: "eth_chainId" });
+                            console.log("Current chain ID:", fetchedChainId);
+                            if (fetchedChainId !== "0xaa01") {
                                 try {
-                                    fetchedChainId = await ethereum.request({ method: "eth_chainId" });
-                                    console.log("Current chain ID:", fetchedChainId);
-                                    if (fetchedChainId !== "0xaa01") {
-                                        setError("Please switch to MemeCore Testnet (chain ID: 0xaa01).");
-                                        await ethereum.request({
-                                            method: "wallet_switchEthereumChain",
-                                            params: [{ chainId: "0xaa01" }],
-                                        });
-                                        fetchedChainId = "0xaa01";
+                                    await ethereum.request({
+                                        method: "wallet_switchEthereumChain",
+                                        params: [{ chainId: "0xaa01" }],
+                                    });
+                                    fetchedChainId = "0xaa01";
+                                    console.log("Switched to MemeCore Testnet.");
+                                    setError("Switched to MemeCore Testnet.");
+                                } catch (switchError) {
+                                    if (switchError.code === 4902) {
+                                        // Chain not added, attempt to add it
+                                        try {
+                                            await ethereum.request({
+                                                method: "wallet_addEthereumChain",
+                                                params: [memecoreTestnetConfig],
+                                            });
+                                            fetchedChainId = "0xaa01";
+                                            console.log("MemeCore Testnet added and switched.");
+                                            setError("MemeCore Testnet added and switched.");
+                                        } catch (addError) {
+                                            console.error("Failed to add MemeCore Testnet:", addError);
+                                            throw new Error("Failed to add MemeCore Testnet: " + (addError.message || "Unknown error"));
+                                        }
+                                    } else {
+                                        console.error("Chain switch failed:", switchError);
+                                        throw new Error("Failed to switch to MemeCore Testnet: " + (switchError.message || "Unknown error"));
                                     }
-                                    break;
-                                } catch (err) {
-                                    attempts++;
-                                    console.warn(`Chain ID fetch attempt ${attempts} failed:`, err);
-                                    if (attempts === maxAttempts) {
-                                        console.warn("Could not fetch chain ID, proceeding anyway.");
-                                        fetchedChainId = "Unknown (fetch failed)";
-                                    }
-                                    await delay(1000);
                                 }
                             }
                         } catch (err) {
-                            console.warn("Chain ID fetch or switch failed, continuing connection:", err);
-                            setError("Failed to switch to MemeCore Testnet: " + (err.message || "Unknown error"));
+                            console.warn("Chain ID fetch or switch failed:", err);
+                            setError("Failed to verify or switch to MemeCore Testnet: " + (err.message || "Unknown error"));
+                            throw err;
                         }
                         setChainId(fetchedChainId);
-
-                        console.log("Requesting accounts...");
-                        let accounts;
-                        try {
-                            accounts = await ethereum.request({ method: "eth_requestAccounts" });
-                            console.log("Accounts received:", accounts);
-                        } catch (err) {
-                            throw new Error("Failed to request accounts: " + (err.message || err.code || "User rejected or MetaMask is locked"));
-                        }
-                        if (!accounts?.length) {
-                            throw new Error("No accounts found. Please ensure MetaMask is unlocked and has accounts.");
-                        }
 
                         console.log("Initializing provider and signer...");
                         let provider, signer, address;
@@ -366,7 +398,7 @@
                         setIsGameActive(active);
                         setKingTimer(active ? Math.floor((Date.now() / 1000) - kingStart.toNumber()) : 0);
                         setReferralCount(count.toNumber());
-                        setFees({ withdrawalFee: 12, jackpotFee: 5, referralFee: 5 }); // Static fees
+                        setFees({ withdrawalFee: 12, jackpotFee: 5, referralFee: 5 });
                         setJackpotEligible(isEligible);
                         await updateHistory(contract);
                         await updatePersonalStats(contract, address);
