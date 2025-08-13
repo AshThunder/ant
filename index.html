@@ -205,9 +205,10 @@
                 const [sidebarOpen, setSidebarOpen] = useState(false);
                 const [theme, setTheme] = useState("dark");
                 const [referralCount, setReferralCount] = useState(0);
+                const [referrerAddress, setReferrerAddress] = useState(null);
                 const [chainId, setChainId] = useState(null);
                 const [jackpotEligible, setJackpotEligible] = useState(false);
-                const [fees, setFees] = useState({ withdrawalFee: 12, jackpotFee: 5, referralFee: 5 });
+                const [fees, setFees] = useState({ withdrawalFee: 0, jackpotFee: 0, referralFee: 0 });
 
                 function getStateWithPrecision(value, decimals = 18) {
                     const [setValue, setState] = useState(value);
@@ -382,23 +383,30 @@
                         const throne = await contract.throneAmount();
                         const ethBal = await contract.dashboard(address);
                         const antBal = await contract.passiveIncome(address);
-                        const referralBal = await contract.referralEarnings(address);
+                        // Use getReferralStats for unified referral data per new contract
                         const jackpotBal = await contract.jackpotBalance();
                         const active = await contract.isGameActive();
                         const kingStart = await contract.kingStartTime();
                         const [referrer, count, balance] = await contract.getReferralStats(address);
+                        // Fetch dynamic fee config from contract
+                        const [withFee, jackFee, refFee] = await contract.getCurrentFees();
                         const [isEligible, jackpotAmount] = await contract.getJackpotEligibility();
 
                         setCurrentKing(king);
                         setThroneAmount(ethers.utils.formatEther(throne));
                         setEthBalance(ethers.utils.formatEther(ethBal));
                         setAntBalance(ethers.utils.formatUnits(antBal, 18));
-                        setReferralBalance(ethers.utils.formatEther(referralBal));
+                        setReferralBalance(ethers.utils.formatEther(balance));
                         setJackpotBalance(ethers.utils.formatEther(jackpotAmount));
                         setIsGameActive(active);
                         setKingTimer(active ? Math.floor((Date.now() / 1000) - kingStart.toNumber()) : 0);
                         setReferralCount(count.toNumber());
-                        setFees({ withdrawalFee: 12, jackpotFee: 5, referralFee: 5 });
+                        setReferrerAddress(referrer);
+                        setFees({
+                            withdrawalFee: withFee.toNumber(),
+                            jackpotFee: jackFee.toNumber(),
+                            referralFee: refFee.toNumber()
+                        });
                         setJackpotEligible(isEligible);
                         await updateHistory(contract);
                         await updatePersonalStats(contract, address);
@@ -457,7 +465,7 @@
                         const filterDissolve = contract.filters.KingdomDissolved(null, address);
                         const filterJackpot = contract.filters.JackpotAwarded(address, null);
                         const filterWithdrawn = contract.filters.Withdrawn(address, null, null, null, null, null);
-                        const filterReferred = contract.filters.Referred(address, null);
+                        const filterReferred = contract.filters.Referred(null, address);
                         let eventsNewKing = [], eventsDissolve = [], eventsJackpot = [], eventsWithdrawn = [], eventsReferred = [];
                         try {
                             eventsNewKing = await contract.queryFilter(filterNewKing);
@@ -537,16 +545,20 @@
                     try {
                         console.log("Becoming King with amount:", isGameActive ? throneAmount : "5 ETH");
                         const amount = isGameActive ? ethers.utils.parseEther(throneAmount.toString()) : ethers.utils.parseEther("5");
+                        const zeroAddress = "0x0000000000000000000000000000000000000000";
                         const urlParams = new URLSearchParams(window.location.search);
-                        const referrer = urlParams.get("referrer") || "0x0000000000000000000000000000000000000000";
-                        if (!ethers.utils.isAddress(referrer)) {
-                            console.warn("Invalid referrer address:", referrer);
-                            setError("Invalid referrer address provided.");
-                            setLoading(false);
-                            setModalOpen(false);
-                            return;
+                        const urlRef = urlParams.get("referrer");
+                        let refToUse = zeroAddress;
+                        try {
+                            const existing = await contract.referrals(account);
+                            const hasReferrer = existing && existing.toLowerCase() !== zeroAddress.toLowerCase();
+                            if (!hasReferrer && urlRef && ethers.utils.isAddress(urlRef) && urlRef.toLowerCase() !== account.toLowerCase()) {
+                                refToUse = urlRef;
+                            }
+                        } catch (e) {
+                            console.warn("Could not check existing referrer, defaulting to zero address.");
                         }
-                        const tx = await contract.becomeKing(referrer, { value: amount });
+                        const tx = await contract.becomeKing(refToUse, { value: amount });
                         console.log("Become King TX sent:", tx.hash);
                         await tx.wait();
                         setNotifications(prev => [...prev, { message: "You are now the King!", timestamp: Date.now() }]);
@@ -560,8 +572,6 @@
                             setError("ETH payment is required to become King.");
                         } else if (errorMessage.includes("Must pay")) {
                             setError(`Incorrect ETH amount sent. Required: ${isGameActive ? parseFloat(throneAmount).toFixed(3) : "5.000"} ETH`);
-                        } else if (errorMessage.includes("Referrer already set")) {
-                            setError("Referrer already set for this address.");
                         } else {
                             setError(`Failed to become King: ${errorMessage}`);
                         }
@@ -644,7 +654,7 @@
                         const tx = await contract.withdrawETH();
                         console.log("Withdraw ETH TX sent:", tx.hash);
                         await tx.wait();
-                        setError(`ETH withdrawn! ${fees.withdrawalFee + fees.jackpotFee + fees.referralFee}% fee applied.`);
+                        setError(`ETH withdrawn! ${fees.withdrawalFee + fees.jackpotFee + (fees.referralFee > 0 ? fees.referralFee : 0)}% fee applied.`);
                         await updateState(contract, account);
                     } catch (err) {
                         console.error("Withdraw ETH failed:", err);
@@ -1118,6 +1128,11 @@
                                         <h3 className="text-xl font-semibold mb-4">Your Stats</h3>
                                         <p><strong>Earnings:</strong> {referralBalance} ETH</p>
                                         <p><strong>Referrals:</strong> {referralCount}</p>
+                                        <p>
+                                            <strong>Your Referrer:</strong> {referrerAddress && referrerAddress !== "0x0000000000000000000000000000000000000000"
+                                                ? `${referrerAddress.slice(0, 6)}...${referrerAddress.slice(-4)}`
+                                                : "None"}
+                                        </p>
                                         {account ? (
                                             <div className="mt-4">
                                                 <p><strong>Your Link:</strong></p>
@@ -1135,7 +1150,7 @@
                                             <p className="mt-4">Connect wallet to get your link.</p>
                                         )}
                                         <p className="mt-4">
-                                            Earn 5% of referred users’ ETH withdrawals, no fees. Share your link to invite others!
+                                            Earn {fees.referralFee}% of referred users’ ETH withdrawals. Share your link to invite others!
                                         </p>
                                     </div>
                                 </div>
@@ -1157,8 +1172,8 @@
                                             <li><strong>Earn Rewards:</strong> As King, earn 100 ANT tokens daily and become eligible for the jackpot after 3 minutes.</li>
                                             <li><strong>Dissolve Kingdom:</strong> Pay the current throne amount to dissolve the kingdom, splitting the payment 50% to the jackpot and 50% to the contract owner.</li>
                                             <li><strong>Jackpot:</strong> The King can claim the jackpot after a 3-minute reign, or it’s awarded when a new King takes over.</li>
-                                            <li><strong>Withdrawals:</strong> Withdraw ETH (12% owner fee, 5% jackpot fee, 5% referral fee), ANT tokens, or referral earnings.</li>
-                                            <li><strong>Referrals:</strong> Share your referral link to earn 5% of referred users’ ETH withdrawals.</li>
+                                            <li><strong>Withdrawals:</strong> Withdraw ETH ({fees.withdrawalFee}% owner fee, {fees.jackpotFee}% jackpot fee, {fees.referralFee}% referral fee), ANT tokens, or referral earnings.</li>
+                                            <li><strong>Referrals:</strong> Share your referral link to earn {fees.referralFee}% of referred users’ ETH withdrawals.</li>
                                         </ul>
                                     </div>
                                     <div className="ant-card p-6 rounded-lg bg-[var(--card-bg)] shadow">
@@ -1178,7 +1193,7 @@
                                             </div>
                                             <div>
                                                 <p><strong>How are fees applied?</strong></p>
-                                                <p>ETH withdrawals have a 12% owner fee, 5% jackpot fee, and 5% referral fee (if applicable). ANT and referral withdrawals have no fees.</p>
+                                                <p>ETH withdrawals have a {fees.withdrawalFee}% owner fee, {fees.jackpotFee}% jackpot fee, and {fees.referralFee}% referral fee (if applicable). ANT and referral withdrawals have no fees.</p>
                                             </div>
                                             <div>
                                                 <p><strong>What is the jackpot?</strong></p>
